@@ -50,10 +50,12 @@
     ulib.mkStandaloneFlake {
       inherit self;
       name = "openjpeg";
-      # Canonical binary == package name (openjpeg); see header. Bare `openjpeg`
-      # (no applet) prints a version banner and exits 0 — the tools themselves
-      # exit 1 even on -h, so the dispatcher banner is the clean smoke target.
-      smoke = [ ];
+      # Canonical binary == package name (openjpeg); see header. The dispatcher
+      # prints a version banner and exits 0 for any non-tool argv (the three
+      # tools themselves exit 1 even on -h), so `openjpeg --version` is the clean
+      # smoke target. A non-empty smoke arg is also required: an empty array trips
+      # `set -u` empty-array expansion on the macOS runners' bash 3.2.
+      smoke = [ "--version" ];
       smokePattern = "2\\.5";
       build = pkgs:
         import ./multicall.nix { lib = pkgs.lib // ulib; }
