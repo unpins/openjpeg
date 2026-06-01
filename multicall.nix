@@ -142,6 +142,13 @@ let
       # matching applet the bare dispatcher prints a version banner and exits 0
       # (so its smoke is clean — the tools themselves exit 1 even on -h). The
       # basename strip also survives a rename (CI smoke copies it to smoke.exe).
+      #
+      # NOTE: intentionally does NOT use the shared nix-lib
+      # lib.multicallDispatcherC — that generator's bare/unknown fallback is
+      # either usage()->exit 1 or run-an-applet, and every opj_* tool exits 1
+      # even on -h/--version, so neither gives a clean exit-0 smoke. This
+      # banner-and-exit-0 bare behaviour is the one genuine divergence (alongside
+      # libvpx's usage_exit hook) the shared generator deliberately doesn't model.
       {
         echo '#include <string.h>'
         echo '#include <stdio.h>'
