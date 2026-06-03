@@ -1,7 +1,7 @@
 # openjpeg
 
 Standalone build of the [OpenJPEG](https://github.com/uclouvain/openjpeg)
-command-line tools — the open-source JPEG 2000 codec.
+command-line programs — the open-source JPEG 2000 codec.
 
 [![CI](https://github.com/unpins/openjpeg/actions/workflows/openjpeg.yml/badge.svg)](https://github.com/unpins/openjpeg/actions)
 ![Linux](https://img.shields.io/badge/Linux-✓-success?logo=linux&logoColor=white)
@@ -28,8 +28,6 @@ unpin install openjpeg
 `unpin install openjpeg` creates the `opj_compress`, `opj_decompress`, and `opj_dump` commands.
 
 ## Programs
-
-One binary provides all three OpenJPEG CLIs:
 
 | command           | what it does                              |
 | ----------------- | ----------------------------------------- |
