@@ -10,16 +10,6 @@ command-line tools — the open-source JPEG 2000 codec.
 
 Part of the [unpins](https://unpins.org) project — native single-binary builds with no third-party runtime dependencies.
 
-## Tools
-
-One binary provides all three OpenJPEG CLIs:
-
-| command           | what it does                              |
-| ----------------- | ----------------------------------------- |
-| `opj_compress`    | encode PNG/TIFF/BMP/PNM/RAW → JPEG 2000    |
-| `opj_decompress`  | decode JPEG 2000 → PNG/TIFF/BMP/PNM/RAW    |
-| `opj_dump`        | print a JPEG 2000 codestream's structure  |
-
 ## Usage
 
 Run a program with [unpin](https://github.com/unpins/unpin):
@@ -36,6 +26,16 @@ unpin install openjpeg
 ```
 
 `unpin install openjpeg` creates the `opj_compress`, `opj_decompress`, and `opj_dump` commands.
+
+## Programs
+
+One binary provides all three OpenJPEG CLIs:
+
+| command           | what it does                              |
+| ----------------- | ----------------------------------------- |
+| `opj_compress`    | encode PNG/TIFF/BMP/PNM/RAW → JPEG 2000    |
+| `opj_decompress`  | decode JPEG 2000 → PNG/TIFF/BMP/PNM/RAW    |
+| `opj_dump`        | print a JPEG 2000 codestream's structure  |
 
 ## Build locally
 
