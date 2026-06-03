@@ -20,22 +20,22 @@ One binary provides all three OpenJPEG CLIs:
 | `opj_decompress`  | decode JPEG 2000 → PNG/TIFF/BMP/PNM/RAW    |
 | `opj_dump`        | print a JPEG 2000 codestream's structure  |
 
-The bare `openjpeg` binary is a dispatcher: `openjpeg <tool> …` runs a tool, and
-the three tool names work directly once installed.
+## Usage
 
-## Installation
-
-Install with [unpin](https://github.com/unpins/unpin):
+Run a program with [unpin](https://github.com/unpins/unpin):
 
 ```bash
-unpin openjpeg
+unpin openjpeg opj_compress -i in.png -o out.jp2
+unpin openjpeg opj_decompress -i in.jp2 -o out.png
 ```
 
-Or run without installing:
+To install the programs onto your PATH:
 
 ```bash
-unpin run openjpeg opj_compress -i in.png -o out.jp2
+unpin install openjpeg
 ```
+
+`unpin install openjpeg` creates the `opj_compress`, `opj_decompress`, and `opj_dump` commands.
 
 ## Build locally
 
