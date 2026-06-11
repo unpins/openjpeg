@@ -137,11 +137,12 @@ let
         done
       done
 
-      # Dispatcher: basename(argv[0]) → <tool>_main. The canonical name
-      # (openjpeg) and any unknown argv[0] try a `<bin> <applet> …` form; with no
-      # matching applet the bare dispatcher prints a version banner and exits 0
-      # (so its smoke is clean — the tools themselves exit 1 even on -h). The
-      # basename strip also survives a rename (CI smoke copies it to smoke.exe).
+      # Dispatcher: basename(argv[0]) → <tool>_main (alias path), or the bare
+      # binary selects a tool with `--unpin-program=NAME` (same contract as the
+      # shared nix-lib generator). The canonical name (openjpeg) and any unknown
+      # argv[0] with no --unpin-program print a version banner and exit 0 (so its
+      # smoke is clean — the tools themselves exit 1 even on -h). The basename
+      # strip also survives a rename (CI smoke copies it to smoke.exe).
       #
       # NOTE: intentionally does NOT use the shared nix-lib
       # lib.multicallDispatcherC — that generator's bare/unknown fallback is
@@ -176,15 +177,22 @@ int main(int argc, char **argv) {
     char b[64];
     const char *a0 = (argc > 0 && argv[0]) ? argv[0] : "openjpeg";
     base_of(b, sizeof b, a0);
-    for (const struct ap *a = aps; a->n; a++)
-        if (strcmp(b, a->n) == 0) return a->f(argc, argv);
-    /* canonical/unknown argv[0]: allow `openjpeg <applet> [args]`. */
-    if (argc >= 2) {
-        char c[64]; base_of(c, sizeof c, argv[1]);
+    int is_canon = strcmp(b, "openjpeg") == 0;
+    /* Alias path: a symlink whose basename is a tool (not the canonical name)
+       runs via argv[0]. --unpin-program is ignored here (identity lock). */
+    if (!is_canon)
         for (const struct ap *a = aps; a->n; a++)
-            if (strcmp(c, a->n) == 0) return a->f(argc - 1, argv + 1);
+            if (strcmp(b, a->n) == 0) return a->f(argc, argv);
+    /* Multitool: --unpin-program=NAME selects the tool (no positional form). */
+    if (argc >= 2 && strncmp(argv[1], "--unpin-program=", 16) == 0) {
+        const char *sel = argv[1] + 16;
+        for (const struct ap *a = aps; a->n; a++)
+            if (strcmp(sel, a->n) == 0) { argv[1] = (char *)sel; return a->f(argc - 1, argv + 1); }
+        fprintf(stderr, "openjpeg: no program '%s'\n", sel);
+        return 1;
     }
-    /* bare dispatcher / unknown applet: print banner, list tools, exit 0. */
+    /* Bare openjpeg (canonical name, not itself a tool) or a renamed copy:
+       print banner, list tools, exit 0 — the clean smoke target. */
     printf("%s\n", VER);
     printf("tools:");
     for (const struct ap *a = aps; a->n; a++) printf(" %s", a->n);
