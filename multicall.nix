@@ -15,8 +15,8 @@
 # <tool>__foo) so the three `main`s — and the duplicated helper symbols — no
 # longer collide, then link the shared libopenjp2 + image libs ONCE. objcopy
 # rewrites definitions AND relocations, so each tool keeps calling its own
-# (renamed) helpers. A dispatcher.c (basename(argv[0]) → <tool>_main) drives the
-# final link; bare `openjpeg` with no applet prints a version banner (exit 0).
+# (renamed) helpers. The shared nix-lib dispatcher (lib.multicallDispatcherC)
+# drives the final link; a bare `openjpeg` lists its three tools and exits 0.
 #
 # The archive + -l link list is read straight out of each tool's CMake link.txt
 # at build time, so the exact store paths, threading libs and image codecs the
@@ -32,7 +32,6 @@
 let
   isDarwin = opj.stdenv.hostPlatform.isDarwin or false;
   isWindows = opj.stdenv.hostPlatform.isWindows or false;
-  version = opj.version;
 
   multicall = opj.overrideAttrs (old: {
     pname = "openjpeg-multi";
@@ -137,71 +136,20 @@ let
         done
       done
 
-      # Dispatcher: basename(argv[0]) → <tool>_main (alias path), or the bare
-      # binary selects a tool with `--unpin-program=NAME` (same contract as the
-      # shared nix-lib generator). The canonical name (openjpeg) and any unknown
-      # argv[0] with no --unpin-program print a version banner and exit 0 (so its
-      # smoke is clean — the tools themselves exit 1 even on -h). The basename
-      # strip also survives a rename (CI smoke copies it to smoke.exe).
-      #
-      # NOTE: intentionally does NOT use the shared nix-lib
-      # lib.multicallDispatcherC — that generator's bare/unknown fallback is
-      # either usage()->exit 1 or run-an-applet, and every opj_* tool exits 1
-      # even on -h/--version, so neither gives a clean exit-0 smoke. This
-      # banner-and-exit-0 bare behaviour is the one genuine divergence (alongside
-      # libvpx's usage_exit hook) the shared generator deliberately doesn't model.
-      {
-        echo '#include <string.h>'
-        echo '#include <stdio.h>'
-        for t in $TOOLS; do echo "int ''${t}_main(int, char **);"; done
-        echo 'struct ap { const char *n; int (*f)(int, char **); };'
-        echo 'static const struct ap aps[] = {'
-        for t in $TOOLS; do echo "    {\"$t\", ''${t}_main},"; done
-        cat <<CBODY
-    {0, 0}
-};
-static const char *VER = "openjpeg ${version}";
-CBODY
-        cat <<'CBODY'
-static void base_of(char *d, size_t cap, const char *s) {
-    const char *p = s, *x;
-    x = strrchr(p, '/'); if (x) p = x + 1;
-#ifdef _WIN32
-    x = strrchr(p, '\\'); if (x) p = x + 1;
-#endif
-    size_t n = strlen(p); if (n >= cap) n = cap - 1;
-    memcpy(d, p, n); d[n] = 0;
-    if (n > 4 && strcmp(d + n - 4, ".exe") == 0) d[n - 4] = 0;
-}
-int main(int argc, char **argv) {
-    char b[64];
-    const char *a0 = (argc > 0 && argv[0]) ? argv[0] : "openjpeg";
-    base_of(b, sizeof b, a0);
-    int is_canon = strcmp(b, "openjpeg") == 0;
-    /* Alias path: a symlink whose basename is a tool (not the canonical name)
-       runs via argv[0]. --unpin-program is ignored here (identity lock). */
-    if (!is_canon)
-        for (const struct ap *a = aps; a->n; a++)
-            if (strcmp(b, a->n) == 0) return a->f(argc, argv);
-    /* Multitool: --unpin-program=NAME selects the tool (no positional form). */
-    if (argc >= 2 && strncmp(argv[1], "--unpin-program=", 16) == 0) {
-        const char *sel = argv[1] + 16;
-        for (const struct ap *a = aps; a->n; a++)
-            if (strcmp(sel, a->n) == 0) { argv[1] = (char *)sel; return a->f(argc - 1, argv + 1); }
-        fprintf(stderr, "openjpeg: no program '%s'\n", sel);
-        return 1;
-    }
-    /* Bare openjpeg (canonical name, not itself a tool) or a renamed copy:
-       print banner, list tools, exit 0 — the clean smoke target. */
-    printf("%s\n", VER);
-    printf("tools:");
-    for (const struct ap *a = aps; a->n; a++) printf(" %s", a->n);
-    printf("\n");
-    return 0;
-}
-CBODY
-      } > "$MC/dispatcher.c"
-      $CC -O2 -c -o "$MC/dispatcher.o" "$MC/dispatcher.c"
+      # Multicall dispatcher via the shared nix-lib generator — one contract for
+      # the whole catalog (argv[0] alias path + a `--unpin-program=NAME` selector
+      # on the bare binary). It calls each tool as `<tool>_main(int, char **)` —
+      # the symbols the redef map produced just above (opj_compress_main, …). No
+      # defaultApplet: a bare or renamed `openjpeg` (CI's smoke.exe) lists its
+      # tools on stdout and exits 0, the clean smoke target — every opj_* tool
+      # exits 1 even on -h, so a tool can't be the smoke. The generator's own
+      # basename strip survives the CI rename. It writes multicall/dispatcher.c
+      # relative to the link CWD ($JP2); compile that into $MC where the final
+      # link expects $MC/dispatcher.o.
+      mkdir -p multicall
+      printf '%s\n' $TOOLS > multicall/apps.list
+${lib.multicallDispatcherC { name = "openjpeg"; }}
+      $CC -O2 -c -o "$MC/dispatcher.o" multicall/dispatcher.c
 
       # Final link: shared libopenjp2 + image-codec libs, once. On GNU-ld
       # targets wrap the archives in a group to absorb any back-reference; ld64
