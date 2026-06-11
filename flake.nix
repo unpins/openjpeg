@@ -1,5 +1,5 @@
 {
-  description = "Standalone build of the OpenJPEG tools";
+  description = "the OpenJPEG (JPEG 2000) command-line tools as a single self-contained binary";
 
   nixConfig = {
     extra-substituters = [ "https://unpins.cachix.org" ];
