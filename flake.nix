@@ -56,11 +56,44 @@
       # tool can't be the smoke target; `openjpeg --help` is the clean smoke. A
       # non-empty smoke arg is also required: an empty array trips `set -u`
       # empty-array expansion on the macOS runners' bash 3.2.
+      # Engine self-fold (native Linux + darwin): the unpin-llvm engine compiles
+      # OpenJPEG's three CLIs to bitcode and folds them into one `openjpeg`
+      # dispatcher. Bare/`--help` lists the three programs and exits 0 (the
+      # dispatcher's no-applet path), so the existing smoke still matches
+      # `opj_compress` in that listing. Pure C — no requires.cxx. The objcopy
+      # fold in ./multicall.nix can't run on the engine's -flto bitcode objects,
+      # so it stays the Windows path.
+      engine = "unpin-llvm";
+      multicall = {
+        programs = [
+          { name = "opj_compress"; }
+          { name = "opj_decompress"; }
+          { name = "opj_dump"; }
+        ];
+      };
       smoke = [ "--help" ];
       smokePattern = "opj_compress";
       build = pkgs:
-        import ./multicall.nix { lib = pkgs.lib // ulib; }
-          { inherit pkgs; opj = withOpj pkgs.pkgsStatic; };
+        (withOpj pkgs.pkgsStatic).overrideAttrs (o: {
+          # Build the three CLIs (BUILD_CODEC) as static executables; drop the
+          # shared lib and the test tree. Same flags multicall.nix used.
+          cmakeFlags = (o.cmakeFlags or [ ]) ++ [
+            "-DBUILD_SHARED_LIBS:BOOL=FALSE"
+            "-DBUILD_TESTING:BOOL=FALSE"
+            "-DBUILD_CODEC:BOOL=ON"
+          ];
+          # nixpkgs' openjpeg doesn't install the tool man pages; they live in the
+          # source tree. Copy the three so withMan embeds them (parity with the
+          # old multicall.nix installPhase).
+          postInstall = (o.postInstall or "") + ''
+            mkdir -p "$out/share/man/man1"
+            for m in opj_compress opj_decompress opj_dump; do
+              for d in "$src/doc/man/man1" doc/man/man1 ../doc/man/man1; do
+                [ -f "$d/$m.1" ] && cp "$d/$m.1" "$out/share/man/man1/$m.1" && break
+              done
+            done
+          '';
+        });
       windowsBuild = pkgs:
         import ./multicall.nix { lib = pkgs.lib // ulib; }
           { inherit pkgs; opj = withOpj (ulib.mingwStaticCross pkgs); };

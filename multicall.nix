@@ -15,7 +15,7 @@
 # <tool>__foo) so the three `main`s — and the duplicated helper symbols — no
 # longer collide, then link the shared libopenjp2 + image libs ONCE. objcopy
 # rewrites definitions AND relocations, so each tool keeps calling its own
-# (renamed) helpers. The shared nix-lib dispatcher (lib.multicallDispatcherC)
+# (renamed) helpers. The shared nix-lib dispatcher (lib.multicallTableDispatcherC)
 # drives the final link; a bare `openjpeg` lists its three tools and exits 0.
 #
 # The archive + -l link list is read straight out of each tool's CMake link.txt
@@ -147,8 +147,11 @@ let
       # relative to the link CWD ($JP2); compile that into $MC where the final
       # link expects $MC/dispatcher.o.
       mkdir -p multicall
-      printf '%s\n' $TOOLS > multicall/apps.list
-${lib.multicallDispatcherC { name = "openjpeg"; }}
+      # multicallTableDispatcherC reads multicall/applets.list as a TSV
+      # (<tool>\t<sanitized>); opj_* names are already valid C idents, so san==tool.
+      : > multicall/applets.list
+      for t in $TOOLS; do printf '%s\t%s\n' "$t" "$t" >> multicall/applets.list; done
+${lib.multicallTableDispatcherC { name = "openjpeg"; }}
       $CC -O2 -c -o "$MC/dispatcher.o" multicall/dispatcher.c
 
       # Final link: shared libopenjp2 + image-codec libs, once. On GNU-ld
