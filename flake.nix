@@ -22,27 +22,14 @@
   outputs = { self, unpins-lib }:
     let
       ulib = unpins-lib.lib;
-      # The tools pull libjpeg-turbo transitively through libtiff. On riscv64
-      # the vanilla libjpeg-turbo fails to build (its RVV SIMD coverage helper
-      # references jsimd_can_* symbols the new RVV port never defines); apply the
-      # shared nix-lib fix, gated to riscv so other arches keep the cached build.
-      # Same one chafa/heif/avif/libwebp use.
-      #
-      # Also add libjpeg's dev to buildInputs: libtiff-4.pc declares
+      # Add libjpeg's dev to buildInputs: libtiff-4.pc declares
       # `Requires.private: zlib libjpeg`, but the cross/static dep closure does
       # not propagate libjpeg's `.dev` (the .pc lives there), so on mingw
       # `pkg_check_modules(PC_TIFF)` fails on the missing libjpeg.pc and openjpeg
       # leaves TIFF_LIBNAME empty — the tools then fail to link libtiff. Putting
       # libjpeg.pc back on PKG_CONFIG_PATH lets pkg-config resolve tiff's full
       # static closure, which our post-link then harvests from link.txt.
-      withOpj = scope:
-        let
-          host = scope.stdenv.hostPlatform;
-          s = scope.extend (final: prev:
-            scope.lib.optionalAttrs host.isRiscV {
-              libjpeg = ulib.nativeFixes."libjpeg-turbo" prev;
-            });
-        in
+      withOpj = s:
         s.openjpeg.overrideAttrs (o: {
           buildInputs = (o.buildInputs or [ ]) ++ [ (s.libjpeg.dev or s.libjpeg) ];
         });
