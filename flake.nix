@@ -9,8 +9,8 @@
   inputs.unpins-lib.url = "github:unpins/nix-lib";
 
   # OpenJPEG installs three CLIs (opj_compress, opj_decompress, opj_dump);
-  # ./multicall.nix post-links them into one `openjpeg` dispatcher binary with
-  # all three tool names as argv[0]-dispatch UNPIN_META aliases. Windows goes
+  # nix-lib folds them into one `openjpeg` dispatcher binary with all three
+  # tool names as argv[0]-dispatch UNPIN_META aliases. Windows goes
   # through mingw — OpenJPEG is portable CMake C that cross-compiles cleanly
   # (like brotli), and CMake adds -DOPJ_STATIC on a static Windows build so the
   # public API isn't decorated __declspec(dllimport).
@@ -33,6 +33,26 @@
         s.openjpeg.overrideAttrs (o: {
           buildInputs = (o.buildInputs or [ ]) ++ [ (s.libjpeg.dev or s.libjpeg) ];
         });
+      # Build the three CLIs (BUILD_CODEC) as static executables and drop the
+      # shared lib and the test tree. Appended last so they win over the expr's
+      # BUILD_SHARED_LIBS=TRUE and over the BUILD_CODEC=OFF mingwStaticCross
+      # injects — the codec IS the three tools we ship. nixpkgs doesn't install
+      # the tool man pages either, so copy them out of the source tree.
+      opjTools = drv: drv.overrideAttrs (o: {
+        cmakeFlags = (o.cmakeFlags or [ ]) ++ [
+          "-DBUILD_SHARED_LIBS:BOOL=FALSE"
+          "-DBUILD_TESTING:BOOL=FALSE"
+          "-DBUILD_CODEC:BOOL=ON"
+        ];
+        postInstall = (o.postInstall or "") + ''
+          mkdir -p "$out/share/man/man1"
+          for m in opj_compress opj_decompress opj_dump; do
+            for d in "$src/doc/man/man1" doc/man/man1 ../doc/man/man1; do
+              [ -f "$d/$m.1" ] && cp "$d/$m.1" "$out/share/man/man1/$m.1" && break
+            done
+          done
+        '';
+      });
     in
     ulib.mkStandaloneFlake {
       inherit self;
@@ -47,11 +67,10 @@
       # OpenJPEG's three CLIs to bitcode and folds them into one `openjpeg`
       # dispatcher. Bare/`--help` lists the three programs and exits 0 (the
       # dispatcher's no-applet path), so the existing smoke still matches
-      # `opj_compress` in that listing. Pure C — no requires.cxx. The objcopy
-      # fold in ./multicall.nix can't run on the engine's -flto bitcode objects,
-      # so it stays the Windows path.
+      # `opj_compress` in that listing. Pure C — no requires.cxx.
       engine = "unpin-llvm";
       multicall = {
+        windows = true;
         programs = [
           { name = "opj_compress"; }
           { name = "opj_decompress"; }
@@ -60,29 +79,7 @@
       };
       smoke = [ "--help" ];
       smokePattern = "opj_compress";
-      build = pkgs:
-        (withOpj pkgs.pkgsStatic).overrideAttrs (o: {
-          # Build the three CLIs (BUILD_CODEC) as static executables; drop the
-          # shared lib and the test tree. Same flags multicall.nix used.
-          cmakeFlags = (o.cmakeFlags or [ ]) ++ [
-            "-DBUILD_SHARED_LIBS:BOOL=FALSE"
-            "-DBUILD_TESTING:BOOL=FALSE"
-            "-DBUILD_CODEC:BOOL=ON"
-          ];
-          # nixpkgs' openjpeg doesn't install the tool man pages; they live in the
-          # source tree. Copy the three so withMan embeds them (parity with the
-          # old multicall.nix installPhase).
-          postInstall = (o.postInstall or "") + ''
-            mkdir -p "$out/share/man/man1"
-            for m in opj_compress opj_decompress opj_dump; do
-              for d in "$src/doc/man/man1" doc/man/man1 ../doc/man/man1; do
-                [ -f "$d/$m.1" ] && cp "$d/$m.1" "$out/share/man/man1/$m.1" && break
-              done
-            done
-          '';
-        });
-      windowsBuild = pkgs:
-        import ./multicall.nix { lib = pkgs.lib // ulib; }
-          { inherit pkgs; opj = withOpj (ulib.mingwStaticCross pkgs); };
+      build = pkgs: opjTools (withOpj pkgs.pkgsStatic);
+      windowsBuild = pkgs: opjTools (withOpj (ulib.mingwStaticCross pkgs));
     };
 }
