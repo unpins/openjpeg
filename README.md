@@ -9,36 +9,42 @@ The [OpenJPEG](https://github.com/uclouvain/openjpeg) command-line programs — 
 
 Part of the [unpins](https://unpins.org) catalog; install it with [`unpin`](https://github.com/unpins/unpin): `unpin install openjpeg`.
 
+Encode, decode and inspect JPEG 2000 images.
+
 ## Usage
 
 Run a program with [unpin](https://github.com/unpins/unpin):
 
 ```bash
-unpin openjpeg opj_compress -i in.png -o out.jp2
-unpin openjpeg opj_decompress -i in.jp2 -o out.png
+unpin openjpeg --unpin-program=opj_compress -i in.png -o out.jp2
+unpin openjpeg --unpin-program=opj_decompress -i in.jp2 -o out.png
 ```
 
-To install the programs onto your PATH:
+Or install them and call each by name, which is usually what you want:
 
 ```bash
 unpin install openjpeg
+opj_compress -i in.png -o out.jp2
 ```
 
-`unpin install openjpeg` creates the `opj_compress`, `opj_decompress`, and `opj_dump` commands.
+`unpin install openjpeg` creates all three commands.
 
 ## Programs
 
-| command           | what it does                              |
-| ----------------- | ----------------------------------------- |
-| `opj_compress`    | encode PNG/TIFF/BMP/PNM/RAW → JPEG 2000    |
-| `opj_decompress`  | decode JPEG 2000 → PNG/TIFF/BMP/PNM/RAW    |
-| `opj_dump`        | print a JPEG 2000 codestream's structure  |
+| program | what it does |
+|---|---|
+| `opj_compress` | encode a PNG, TIFF, BMP, PNM/PAM, PGX, TGA or raw image to JPEG 2000 |
+| `opj_decompress` | decode JPEG 2000 to PNG, TIFF, BMP, PNM, PGX, TGA or raw |
+| `opj_dump` | print a JPEG 2000 codestream's structure |
+
+Encoding is lossless unless you ask for a rate (`-r`) or a quality (`-q`).
+Each program prints its options with `-h`.
 
 ## Build locally
 
 ```bash
 nix build github:unpins/openjpeg
-./result/bin/openjpeg
+./result/bin/openjpeg --unpin-program=opj_dump -h
 ```
 
 Or run directly:
@@ -55,16 +61,18 @@ The [Releases](https://github.com/unpins/openjpeg/releases) page has standalone 
 
 ## Build notes
 
-- One multicall binary holds all three tools. Each tool compiles its own copy of
-  the bin helpers (image conversion + getopt) and shares only `libopenjp2` and
-  the external codecs (png/tiff/lcms2/zlib), linked once. The canonical name is
-  `openjpeg` (a dispatcher); the three tools dispatch on `argv[0]`.
-- The tools are folded together with the post-link `objcopy --redefine-sym`
-  recipe (rename each tool's `main` → `<tool>_main`), with the archive/codec
-  link list read from CMake's per-tool `link.txt`.
-- PNG, TIFF and LCMS2 input/output are linked in statically on every platform —
-  no sidecar DLLs or shared objects.
+- One binary holds all three tools. It answers to `--unpin-program=<tool>` and,
+  once installed, to each tool's own name; `libopenjp2` and the external codecs
+  are linked once and shared.
+- PNG, TIFF and LCMS2 are linked in statically on every platform — no sidecar
+  DLLs or shared objects. libtiff brings its codecs with it, so a TIFF
+  compressed with LZW, Deflate, PackBits, LZMA or Zstd reads too. WebP-in-TIFF
+  reads on Linux and macOS but not on Windows.
+- Multithreaded encoding and decoding (`-threads`) is on everywhere, on POSIX
+  threads or, on Windows, the native Win32 ones.
+- The build checks itself: it encodes a small image and reads it back through
+  PPM, PNG, TIFF, BMP and TGA, and fails unless the pixels come back unchanged.
+  That runs wherever the build machine can execute what it just built.
 - **Windows** is built with mingw. The codec tools (disabled there by default)
   are re-enabled; libtiff's static link closure is recovered by putting
-  `libjpeg.pc` back on the pkg-config path (`libtiff-4.pc` requires it). The
-  tools use native Win32 threads, so the `.exe` drags no extra runtime.
+  `libjpeg.pc` back on the pkg-config path (`libtiff-4.pc` requires it).
