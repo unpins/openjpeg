@@ -30,7 +30,7 @@
   matching `opj_compress` anywhere in the output — which any error message
   listing the programs would also have satisfied.
 
-## [v2.5.4-1] - 2026-06-06
+## [2.5.4-1] - 2026-06-06
 
 First release: `opj_compress`, `opj_decompress` and `opj_dump` in one binary,
 for Linux, macOS and Windows.
