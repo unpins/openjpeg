@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.5.4-2] - 2026-09-26
+
 ### Fixed
 
 - On Windows, `opj_compress` refused TIFF files compressed with Zstd or LZMA —
