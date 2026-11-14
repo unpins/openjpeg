@@ -61,7 +61,7 @@ The [Releases](https://github.com/unpins/openjpeg/releases) page has standalone 
 
 ## Build notes
 
-- One binary holds all three tools. It answers to `--unpin-program=<tool>` and,
+- One binary holds all three programs. It answers to `--unpin-program=<program>` and,
   once installed, to each tool's own name; `libopenjp2` and the external codecs
   are linked once and shared.
 - PNG, TIFF and LCMS2 are linked in statically on every platform — no sidecar
@@ -73,6 +73,6 @@ The [Releases](https://github.com/unpins/openjpeg/releases) page has standalone 
 - The build checks itself: it encodes a small image and reads it back through
   PPM, PNG, TIFF, BMP and TGA, and fails unless the pixels come back unchanged.
   That runs wherever the build machine can execute what it just built.
-- **Windows** is built with mingw. The codec tools (disabled there by default)
+- **Windows** is built with mingw. The codec programs (disabled there by default)
   are re-enabled; libtiff's static link closure is recovered by putting
   `libjpeg.pc` back on the pkg-config path (`libtiff-4.pc` requires it).
