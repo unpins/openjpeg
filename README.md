@@ -73,6 +73,9 @@ The [Releases](https://github.com/unpins/openjpeg/releases) page has standalone 
 - The build checks itself: it encodes a small image and reads it back through
   PPM, PNG, TIFF, BMP and TGA, and fails unless the pixels come back unchanged.
   That runs wherever the build machine can execute what it just built.
-- **Windows** is built with mingw. The codec programs (disabled there by default)
-  are re-enabled; libtiff's static link closure is recovered by putting
-  `libjpeg.pc` back on the pkg-config path (`libtiff-4.pc` requires it).
+- **Windows** is built with mingw.
+- **Tests:** OpenJPEG's conformance suite (the 1534 tests nixpkgs runs) runs on
+  native builds (0 failures under static-musl) and is
+  skipped on cross targets the build host can't execute.
+- **Not included:** the JPIP programs (`opj_jpip_addxml`, `opj_jpip_transcode`,
+  `opj_jpip_test`, `opj_dec_server`, `opj_server`) (off in nixpkgs).
