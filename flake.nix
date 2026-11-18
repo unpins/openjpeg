@@ -28,19 +28,17 @@
       # `pkg_check_modules(PC_TIFF)` fails on the missing libjpeg.pc and openjpeg
       # leaves TIFF_LIBNAME empty — the tools then fail to link libtiff. Putting
       # libjpeg.pc back on PKG_CONFIG_PATH lets pkg-config resolve tiff's full
-      # static closure, which our post-link then harvests from link.txt.
+      # static closure for the tools' link.
       withOpj = s:
         s.openjpeg.overrideAttrs (o: {
           buildInputs = (o.buildInputs or [ ]) ++ [ (s.libjpeg.dev or s.libjpeg) ];
         });
-      # Build the three CLIs (BUILD_CODEC) as static executables and drop the
-      # shared lib and the test tree. Appended last so they win over the expr's
-      # BUILD_SHARED_LIBS=TRUE and over the BUILD_CODEC=OFF mingwStaticCross
-      # injects — the codec IS the three tools we ship. nixpkgs doesn't install
+      # Build the three CLIs (BUILD_CODEC) and drop the test tree. Appended
+      # last so they win over the BUILD_CODEC=OFF mingwStaticCross injects —
+      # the codec IS the three tools we ship. nixpkgs doesn't install
       # the tool man pages either, so copy them out of the source tree.
       opjTools = drv: drv.overrideAttrs (o: {
         cmakeFlags = (o.cmakeFlags or [ ]) ++ [
-          "-DBUILD_SHARED_LIBS:BOOL=FALSE"
           "-DBUILD_TESTING:BOOL=FALSE"
           "-DBUILD_CODEC:BOOL=ON"
         ];
