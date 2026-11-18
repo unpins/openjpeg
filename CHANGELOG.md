@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- The native builds now run OpenJPEG's conformance suite (1534 tests, all
+  passing on Linux x86_64), as nixpkgs does.
+
 ## [2.5.4-2] - 2026-09-26
 
 ### Fixed

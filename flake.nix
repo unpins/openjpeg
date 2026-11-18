@@ -33,13 +33,11 @@
         s.openjpeg.overrideAttrs (o: {
           buildInputs = (o.buildInputs or [ ]) ++ [ (s.libjpeg.dev or s.libjpeg) ];
         });
-      # Build the three CLIs (BUILD_CODEC) and drop the test tree. Appended
-      # last so they win over the BUILD_CODEC=OFF mingwStaticCross injects —
+      # Build the three CLIs (BUILD_CODEC). Appended last so they win over the BUILD_CODEC=OFF mingwStaticCross injects —
       # the codec IS the three tools we ship. nixpkgs doesn't install
       # the tool man pages either, so copy them out of the source tree.
       opjTools = drv: drv.overrideAttrs (o: {
         cmakeFlags = (o.cmakeFlags or [ ]) ++ [
-          "-DBUILD_TESTING:BOOL=FALSE"
           "-DBUILD_CODEC:BOOL=ON"
         ];
         postInstall = (o.postInstall or "") + ''
